@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DACE: Dense Flow from Adaptive Correspondence (NeurIPS 2026)</title>
+  <meta name="description" content="DACE learns which pixels each correspondence unit represents: shared soft pixel-to-unit assignments pool matching evidence and return predicted flow to pixels. Lowest zero-shot Sintel Final and KITTI error among the compared methods.">
+  <meta name="author" content="Cheng-Lin Hsieh, Stella X. Yu">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="DACE: Dense Flow from Adaptive Correspondence">
+  <meta property="og:description" content="Learning the units of correspondence for dense optical flow. NeurIPS 2026.">
+  <meta property="og:url" content="https://chenglinh.github.io/DACE/">
+  <meta property="og:image" content="https://chenglinh.github.io/DACE/static/img/social.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DACE: Dense Flow from Adaptive Correspondence">
+  <meta name="twitter:description" content="Learning the units of correspondence for dense optical flow. NeurIPS 2026.">
+  <meta name="twitter:image" content="https://chenglinh.github.io/DACE/static/img/social.jpg">
+  <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="static/fonts/eb-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="topnav" aria-label="Sections">
+  <div class="topnav-inner">
+    <a class="brand" href="#top">DACE</a>
+    <div class="navlinks">
+      <a href="#problem">Problem</a>
+      <a href="#method">Method</a>
+      <a href="#units">Learned units</a>
+      <a href="#results">Results</a>
+      <a href="#analysis">Analysis</a>
+      <a href="#citation">Cite</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="venue">NeurIPS 2026</div>
+    <h1><span class="ac">D</span>ense Flow from <span class="ac">A</span>daptive <span class="ac">C</span>orrespondenc<span class="ac">e</span></h1>
+    <p class="authors">
+      <a href="https://chenglinh.github.io/">Cheng-Lin Hsieh</a>
+      <span class="sep">&middot;</span>
+      <a href="https://web.eecs.umich.edu/~stellayu/">Stella X. Yu</a>
+    </p>
+    <p class="affil">University of Michigan</p>
+    <div class="buttons">
+      <a class="btn" href="https://chenglinh.github.io/papers/dense-flow-adaptive-correspondence.pdf">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l6 6v14H6z M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Paper</a>
+      <span class="btn disabled" title="Coming soon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l14 16M19 4L5 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>arXiv <small>soon</small></span>
+      <a class="btn" href="https://github.com/chenglinh/DACE">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>Code</a>
+      <a class="btn" href="#citation">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>BibTeX</a>
+    </div>
+
+    <figure class="teaser">
+      <div class="teaser-bar">
+        <div class="pills" role="group" aria-label="Teaser example">
+          <button class="pill" aria-pressed="true" data-teaser="sintel">Sintel</button>
+          <button class="pill" aria-pressed="false" data-teaser="spring">Spring</button>
+        </div>
+        <div class="pills small" role="group" aria-label="Left layer">
+          <span class="pill-label">Left:</span>
+          <button class="pill" aria-pressed="true" data-teaser-left="units">Learned units</button>
+          <button class="pill" aria-pressed="false" data-teaser-left="image">Input image</button>
+        </div>
+      </div>
+      <div class="compare" id="teaser-compare">
+        <img class="layer base" alt="Predicted dense flow" draggable="false">
+        <div class="clip"><img class="layer top" alt="Learned units" draggable="false"></div>
+        <div class="divider" role="slider" tabindex="0" aria-label="Drag to compare" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="knob"><svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <span class="tag tag-left">Learned units</span>
+        <span class="tag tag-right">Predicted dense flow</span>
+        <div class="lens" aria-hidden="true"></div>
+      </div>
+      <figcaption>
+        <b>DACE learns which pixels each correspondence unit represents.</b> White contours outline the learned units:
+        they follow object boundaries and fine structures, and each unit returns its predicted flow to its own pixels.
+        Drag the slider; hover to magnify. <a href="#flow-colors">How to read flow colors</a>
+      </figcaption>
+    </figure>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="tldr wrap">
+  <p class="tldr-text"><span class="kicker">TL;DR</span> Optical flow must combine evidence across pixels without
+    mixing different motions. Modern networks match fixed grid cells and leave it to learning whether a cell's
+    evidence fits the pixels it represents. <b>DACE learns the correspondence units themselves</b>: one set of soft
+    pixel-to-unit assignments gathers each unit's matching evidence and returns its predicted flow to the same pixels.
+    The gains are largest <b>where no match is visible</b> and <b>near motion boundaries</b>.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-num"><span data-count="2.10" data-dec="2">2.10</span><span class="stat-sep">/</span><span data-count="3.11" data-dec="2">3.11</span></div><div class="stat-label">Sintel Final / KITTI EPE</div><div class="stat-note">lowest zero-shot error among the compared methods</div></div>
+    <div class="stat"><div class="stat-num">42&ndash;52%</div><div class="stat-label">of a fine-grid baseline&rsquo;s error</div><div class="stat-note">comes from the 6&ndash;14% of pixels whose target is occluded or out of frame</div></div>
+    <div class="stat"><div class="stat-num">1.2&ndash;2.6<span class="stat-unit">px</span></div><div class="stat-label">lower EPE where no match is visible</div><div class="stat-note">than WAFT, zero-shot on Sintel and KITTI; 0.25&ndash;0.46&nbsp;px overall</div></div>
+    <div class="stat"><div class="stat-num">0.7&ndash;1.5<span class="stat-unit">px</span></div><div class="stat-label">lower EPE near motion boundaries</div><div class="stat-note">than WAFT, with a quarter as many units</div></div>
+  </div>
+</section>
+
+<section class="wrap narrow abstract" aria-labelledby="abstract-h">
+  <h2 id="abstract-h">Abstract</h2>
+  <p>Reliable optical flow requires combining evidence across pixels without mixing different motions. Modern networks
+    strengthen matching and the use of context, but generally retain fixed-grid correspondence units and link their
+    matching evidence to pixel motion indirectly. We introduce <em>Dense flow from Adaptive CorrespondencE</em> (DACE),
+    which learns the pixel support of correspondence units jointly with motion estimation. Shared soft pixel-to-unit
+    assignments pool matching features, define unit-flow targets, and distribute predicted flow to pixels. Assignments
+    are resolved at image resolution, while matching and refinement operate over fewer units. Under the standard
+    zero-shot protocol, DACE achieves the lowest average flow error on Sintel Final and KITTI among the compared
+    methods. We also find that a small fraction of pixels with occluded or out-of-frame targets accounts for roughly
+    half of the average flow error in a fine-grid baseline. DACE reduces error in these regions and near motion
+    boundaries. Controlled studies support adaptive units as a way to use context while preserving distinct
+    motions.</p>
+</section>
+
+<!-- ============================================================ PROBLEM -->
+<section id="problem" class="section">
+  <div class="wrap narrow sec-head">
+    <div class="eyebrow">The problem</div>
+    <h2>Share evidence across pixels, keep different motions apart</h2>
+    <p class="lead">Edges, weak texture and missing matches need information beyond a single pixel, yet nearby pixels
+      need not share motion. Reliable flow must resolve ambiguity through spatial context without blurring motion
+      boundaries.</p>
+  </div>
+
+  <div class="wrap">
+    <figure class="card fig" id="premise">
+      <div class="premise">
+        <div class="premise-col">
+          <div class="premise-title"><b>(a)</b> Fine structures</div>
+          <p class="premise-desc">A fine structure moves differently from its surroundings.</p>
+          <figure class="pm pm-full"><img src="static/img/problem/a_full.webp" width="1080" height="460" loading="lazy" alt="Fine structures: Image 1, full frame"><figcaption>Image 1 (full)</figcaption></figure>
+          <div class="pm-row two">
+            <figure class="pm"><img src="static/img/problem/a_image1.webp" width="645" height="484" loading="lazy" alt="Image 1 crop"><figcaption>Image 1</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/a_image2.webp" width="645" height="484" loading="lazy" alt="Image 2 crop"><figcaption>Image 2</figcaption></figure>
+          </div>
+          <div class="pm-row four">
+            <figure class="pm"><img src="static/img/problem/a_detail.webp" width="321" height="321" loading="lazy" alt="Detail"><figcaption>Detail</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/a_gt.webp" width="321" height="321" loading="lazy" alt="Ground truth flow"><figcaption>GT</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/a_waft.webp" width="321" height="321" loading="lazy" alt="WAFT flow"><figcaption>WAFT</figcaption></figure>
+            <figure class="pm ours"><img src="static/img/problem/a_dace.webp" width="321" height="321" loading="lazy" alt="DACE flow"><figcaption>DACE</figcaption></figure>
+          </div>
+        </div>
+        <div class="premise-col">
+          <div class="premise-title"><b>(b)</b> Occlusion</div>
+          <p class="premise-desc">A wing hides a background patch in Image&nbsp;2, removing its visible match.</p>
+          <figure class="pm pm-full"><img src="static/img/problem/b_full.webp" width="1080" height="460" loading="lazy" alt="Occlusion: Image 1, full frame"><figcaption>Image 1 (full)</figcaption></figure>
+          <div class="pm-row two">
+            <figure class="pm"><img src="static/img/problem/b_image1.webp" width="645" height="484" loading="lazy" alt="Image 1 crop"><figcaption>Image 1</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/b_image2.webp" width="645" height="484" loading="lazy" alt="Image 2 crop"><figcaption>Image 2</figcaption></figure>
+          </div>
+          <div class="pm-row four">
+            <figure class="pm"><img src="static/img/problem/b_detail.webp" width="321" height="321" loading="lazy" alt="Detail"><figcaption>Detail</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/b_gt.webp" width="321" height="321" loading="lazy" alt="Ground truth flow"><figcaption>GT</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/b_waft.webp" width="321" height="321" loading="lazy" alt="WAFT flow"><figcaption>WAFT</figcaption></figure>
+            <figure class="pm ours"><img src="static/img/problem/b_dace.webp" width="321" height="321" loading="lazy" alt="DACE flow"><figcaption>DACE</figcaption></figure>
+          </div>
+        </div>
+        <div class="premise-col">
+          <div class="premise-title"><b>(c)</b> Shared motion</div>
+          <p class="premise-desc">Different appearances across the car body share coherent motion.</p>
+          <figure class="pm pm-full"><img src="static/img/problem/c_full.webp" width="1080" height="328" loading="lazy" alt="Shared motion: Image 1, full frame"><figcaption>Image 1 (full)</figcaption></figure>
+          <div class="pm-row two">
+            <figure class="pm"><img src="static/img/problem/c_image1.webp" width="645" height="484" loading="lazy" alt="Image 1 crop"><figcaption>Image 1</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/c_image2.webp" width="645" height="484" loading="lazy" alt="Image 2 crop"><figcaption>Image 2</figcaption></figure>
+          </div>
+          <div class="pm-row four">
+            <figure class="pm"><img src="static/img/problem/c_detail.webp" width="321" height="321" loading="lazy" alt="Detail"><figcaption>Detail</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/c_gt.webp" width="321" height="321" loading="lazy" alt="Ground truth flow"><figcaption>GT</figcaption></figure>
+            <figure class="pm"><img src="static/img/problem/c_waft.webp" width="321" height="321" loading="lazy" alt="WAFT flow"><figcaption>WAFT</figcaption></figure>
+            <figure class="pm ours"><img src="static/img/problem/c_dace.webp" width="321" height="321" loading="lazy" alt="DACE flow"><figcaption>DACE</figcaption></figure>
+          </div>
+        </div>
+      </div>
+      <figcaption>Gold boxes locate the aligned crops; the bottom row compares ground truth (GT) with zero-shot WAFT
+        and DACE predictions. Colors share a scale per example; gray marks unlabeled ground truth.</figcaption>
+    </figure>
+  </div>
+
+  <div class="wrap narrow">
+    <h3 class="sub">Fixed grids leave the link between evidence and motion to learning</h3>
+    <p>Modern flow networks have improved through richer matching evidence and better use of context: cost volumes,
+      global matching, pretrained features, learned priors, and higher-resolution indexing. Most take fixed grid cells
+      as the correspondence units. Evidence aggregation and flow upsampling then each set up their own association
+      between a unit and the pixels it represents. Whether a unit's matching evidence fits the motion of those pixels
+      is left to learning, especially where observations are weak and neighboring motions conflict.</p>
+    <h3 class="sub">DACE learns the unit itself</h3>
+    <p>DACE learns which pixels make up each correspondence unit. One set of soft pixel-to-unit assignments, resolved
+      at image resolution, plays three roles:</p>
+    <ul class="roles">
+      <li><b>Pool</b> dense image features into each unit's matching features.</li>
+      <li><b>Define</b> each unit's flow target from the ground-truth flow of its pixels.</li>
+      <li><b>Distribute</b> each unit's predicted flow back to its pixels.</li>
+    </ul>
+    <p>Matching and refinement then run over fewer units, while the assignments keep pixel-level control over how
+      evidence and flow are shared near fine structures and motion boundaries.</p>
+  </div>
+</section>
+
+<!-- ============================================================ METHOD -->
+<section id="method" class="section alt">
+  <div class="wrap narrow sec-head">
+    <div class="eyebrow">Method</div>
+    <h2>One set of assignments couples evidence and motion</h2>
+    <p class="lead">The same learned assignments pool dense features, define unit-flow targets, and distribute unit
+      predictions to pixels. Flow supervision trains them jointly with matching.</p>
+  </div>
+
+  <div class="wrap">
+    <figure class="card fig" id="pipeline">
+      <div class="fig-head">
+        <div class="fig-title">The pipeline, step by step</div>
+        <div class="pills small" role="group" aria-label="Pipeline step">
+          <button class="pill" aria-pressed="true" data-step="0">All</button>
+          <button class="pill" aria-pressed="false" data-step="1">1 Features</button>
+          <button class="pill" aria-pressed="false" data-step="2">2 Assignments</button>
+          <button class="pill" aria-pressed="false" data-step="3">3 Unit features</button>
+          <button class="pill" aria-pressed="false" data-step="4">4 Matching</button>
+          <button class="pill" aria-pressed="false" data-step="5">5 Broadcasting</button>
+          <button class="pill" aria-pressed="false" data-step="6">Training</button>
+        </div>
+      </div>
+      <div class="pipeline-stage">
+        <img src="static/img/method/pipeline.webp" width="2558" height="800" alt="DACE pipeline: feature extraction, soft pixel-to-unit assignments, adaptive pooling and local attention, unit matching and refinement, and adaptive broadcasting back to dense flow, with three training losses">
+        <svg class="pipeline-overlay" viewBox="0 0 787 246" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+      <div class="step-text" id="step-text" aria-live="polite"></div>
+    </figure>
+  </div>
+
+  <div class="wrap narrow">
+    <h3 class="sub">Each pixel predicts a Gaussian over nearby unit anchors</h3>
+    <p>Each unit has an anchor \(q\) on a regular lattice, which fixes the unit count; its pixel support is learned.
+      Pixel \(x\) spreads its weight over the \(3\times3\) anchors around its own cell. A compact head predicts a
+      Gaussian with mean \(\mu_x\) and inverse covariance \(G_x\) over the anchor offsets \(\delta_{xq}\), and
+      normalizes its scores into assignment weights:</p>
+    <div class="eq eq-pair">
+      <div>\[ a_{xq} = -\tfrac12\big(\delta_{xq}-\mu_x\big)^{\!\top} G_x\,\big(\delta_{xq}-\mu_x\big), \]</div>
+      <div>\[ P_{xq}=\frac{\exp a_{xq}}{\sum_{r\in\mathcal N(x)}\exp a_{xr}}. \]</div>
+    </div>
+    <p>A row of \(P\) gives one pixel's weights over nearby units; a column gives one unit's support, which can take an
+      irregular shape and extend across cell borders.</p>
+  </div>
+
+  <div class="wrap">
+    <figure class="card fig" id="assign-demo">
+      <div class="fig-head">
+        <div class="fig-title">Try it: one pixel's assignment weights</div>
+        <div class="pills small" role="group" aria-label="Presets">
+          <button class="pill" aria-pressed="false" data-preset="interior">Inside a region</button>
+          <button class="pill" aria-pressed="false" data-preset="boundary">Near a motion boundary</button>
+          <button class="pill" aria-pressed="false" data-preset="edge">Along one direction</button>
+        </div>
+      </div>
+      <div class="assign-layout">
+        <div class="assign-canvas-wrap">
+          <svg id="assign-svg" viewBox="0 0 420 420" role="img" aria-label="Three by three unit anchors with a draggable Gaussian mean"></svg>
+          <p class="hint">Drag the orange point \(\mu_x\) to move the Gaussian.</p>
+        </div>
+        <div class="assign-side">
+          <label class="slider">Spread <span id="v-spread"></span><input type="range" id="s-spread" min="0.15" max="1.6" step="0.01" value="0.75"></label>
+          <label class="slider">Elongation <span id="v-elong"></span><input type="range" id="s-elong" min="1" max="5" step="0.05" value="1"></label>
+          <label class="slider">Orientation <span id="v-rot"></span><input type="range" id="s-rot" min="0" max="180" step="1" value="0"></label>
+          <div class="entropy">
+            <div class="entropy-head"><span>How spread out the weights are</span><b id="v-entropy"></b></div>
+            <div class="entropy-track"><div class="entropy-mark" id="entropy-mark"></div></div>
+            <div class="entropy-scale"><span>one unit</span><span>shared by many</span></div>
+          </div>
+          <p class="assign-msg" id="assign-msg"></p>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="card fig" id="structure">
+      <div class="fig-head"><div class="fig-title">In the trained model: a row and a column of \(P\)</div></div>
+      <img class="structure-img" src="static/img/method/structure.webp" width="1683" height="530" loading="lazy"
+        alt="A moving blade from Sintel with two examined pixels. Near the motion boundary, the pixel puts all its weight on a neighboring blade unit whose support follows the boundary. Inside the blade, three units share the pixel's weight and the unit's support is broad.">
+      <figcaption><b>Learned assignments adapt units to motion structure.</b> (a) The moving blade from Image&nbsp;1 in
+        the pipeline above; gold boxes mark the two pixels \(x\). (b, d) Assignment weights of \(x\) over nearby
+        anchors, a row of \(P\). (c, e) Support of its most strongly associated unit \(q\), a column of \(P\). Near
+        the motion boundary, \(x\) favors a neighboring blade unit over its own cell's background unit, so pixels of
+        one cell contribute to different units; the support of \(q\) follows the boundary. Inside the blade, several
+        units share its weight, giving broad, soft support.</figcaption>
+    </figure>
+  </div>
+
+  <div class="wrap narrow">
+    <p class="callout">Because matching runs on units, <b>a pixel with a weak or missing match draws on the evidence
+      gathered for its units</b>, while its own assignments control how flow is shared near motion boundaries.</p>
+
+    <h3 class="sub">Learned from flow supervision alone</h3>
+    <p>No segmentation labels: three losses on ground-truth flow train the units and the assignments jointly.</p>
+  </div>
+  <div class="wrap">
+    <div class="losses">
+      <div class="loss card">
+        <div class="loss-tag">Unit flow</div>
+        <p>Each unit predicts the flow of its current pixel support, supervised by ground-truth flow pooled through
+          \(P\).</p>
+      </div>
+      <div class="loss card">
+        <div class="loss-tag">Assignment</div>
+        <p>Each pixel's assignments learn to favor neighboring unit predictions that are compatible with its own
+          ground-truth flow.</p>
+      </div>
+      <div class="loss card">
+        <div class="loss-tag">Flow reconstruction</div>
+        <p>Ground-truth flow pooled into units and broadcast back through \(P\) should match the original, so the
+          grouping preserves motion boundaries.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ LEARNED UNITS -->
+<section id="units" class="section">
+  <div class="wrap narrow sec-head">
+    <div class="eyebrow">Learned units</div>
+    <h2>Units follow motion structure</h2>
+    <p class="lead">Each unit's support is learned from flow alone. In the zero-shot model, supports follow fine
+      structures and object boundaries, and neighboring units separate foreground from background motion.</p>
+  </div>
+  <div class="wrap">
+    <figure class="card fig" id="supports">
+      <div class="fig-head"><div class="fig-title">Individual units</div></div>
+      <div class="supports">
+        <div class="unit-ex">
+          <figure class="pm wide"><img src="static/img/units/a1_image1.webp" width="774" height="581" loading="lazy" alt="Image 1 context"><figcaption>Image 1</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a1_support.webp" width="582" height="582" loading="lazy" alt="One learned unit support"><figcaption>Learned support</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a1_gt.webp" width="582" height="582" loading="lazy" alt="Ground-truth flow with the same support"><figcaption>Ground truth</figcaption></figure>
+        </div>
+        <div class="unit-ex">
+          <figure class="pm wide"><img src="static/img/units/a2_image1.webp" width="774" height="581" loading="lazy" alt="Image 1 context"><figcaption>Image 1</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a2_support.webp" width="582" height="582" loading="lazy" alt="One learned unit support"><figcaption>Learned support</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a2_gt.webp" width="582" height="582" loading="lazy" alt="Ground-truth flow with the same support"><figcaption>Ground truth</figcaption></figure>
+        </div>
+        <div class="unit-ex">
+          <figure class="pm wide"><img src="static/img/units/a3_image1.webp" width="774" height="581" loading="lazy" alt="Image 1 context"><figcaption>Image 1</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a3_support.webp" width="582" height="582" loading="lazy" alt="One learned unit support"><figcaption>Learned support</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a3_gt.webp" width="582" height="582" loading="lazy" alt="Ground-truth flow with the same support"><figcaption>Ground truth</figcaption></figure>
+        </div>
+        <div class="unit-ex">
+          <figure class="pm wide"><img src="static/img/units/a4_image1.webp" width="774" height="581" loading="lazy" alt="Image 1 context"><figcaption>Image 1</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a4_support.webp" width="582" height="582" loading="lazy" alt="One learned unit support"><figcaption>Learned support</figcaption></figure>
+          <figure class="pm"><img src="static/img/units/a4_gt.webp" width="582" height="582" loading="lazy" alt="Ground-truth flow with the same support"><figcaption>Ground truth</figcaption></figure>
+        </div>
+      </div>
+      <figcaption>White contours show one unit's learned support; black dashes mark its original lattice cell. Gold
+        boxes locate the enlarged crops. Contours show the strongest assignment; the model keeps soft weights. Gray
+        ground-truth pixels are unlabeled.</figcaption>
+    </figure>
+
+    <figure class="card fig" id="partition">
+      <div class="fig-head">
+        <div class="fig-title">Same motion, two partitions</div>
+        <div class="pills small" role="group" aria-label="Partition example">
+          <button class="pill" aria-pressed="true" data-part="b1">Slats</button>
+          <button class="pill" aria-pressed="false" data-part="b2">Bent body</button>
+        </div>
+      </div>
+      <div class="partition">
+        <div class="part-inputs">
+          <figure class="mini"><div class="mini-img"><img id="part-image" alt="Image 1 crop" draggable="false"></div><figcaption>Image 1</figcaption></figure>
+          <figure class="mini"><div class="mini-img"><img id="part-groups" alt="Learned groups" draggable="false"></div><figcaption>Learned groups</figcaption></figure>
+        </div>
+        <div class="compare" id="part-compare">
+          <img class="layer base" alt="Ground-truth flow with learned groups" draggable="false">
+          <div class="clip"><img class="layer top" alt="Ground-truth flow with original cells" draggable="false"></div>
+          <div class="divider" role="slider" tabindex="0" aria-label="Drag to compare original cells and learned groups" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="knob"><svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <span class="tag tag-left">GT: original cells</span>
+          <span class="tag tag-right">GT: learned groups</span>
+          <div class="lens" aria-hidden="true"></div>
+        </div>
+      </div>
+      <figcaption>Both sides of the slider show the same ground-truth flow; only the partition changes. Neighboring
+        groups follow slat edges and a bent body outline, separating foreground and background motion. All groups in
+        the crop are shown.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ RESULTS -->
+<section id="results" class="section alt">
+  <div class="wrap narrow sec-head">
+    <div class="eyebrow">Results</div>
+    <h2>Lowest zero-shot error on Sintel Final and KITTI</h2>
+    <p class="lead">All models train on the synthetic FlyingChairs and FlyingThings3D datasets and are tested on
+      Sintel and KITTI without target-domain flow training.</p>
+  </div>
+  <div class="wrap">
+    <figure class="card fig" id="fig-zeroshot">
+      <div class="fig-head">
+        <div class="fig-title">Error versus compute</div>
+        <div class="pills small" role="group" aria-label="Metric" data-group="zs-metric">
+          <button class="pill" aria-pressed="true" data-metric="sintelFinal">Sintel Final</button>
+          <button class="pill" aria-pressed="false" data-metric="sintelClean">Sintel Clean</button>
+          <button class="pill" aria-pressed="false" data-metric="kittiEPE">KITTI EPE</button>
+          <button class="pill" aria-pressed="false" data-metric="kittiFl">KITTI Fl</button>
+        </div>
+      </div>
+      <div class="split">
+        <div class="chart" id="chart-zs-scatter"></div>
+        <div class="chart" id="chart-zs-rank"></div>
+      </div>
+      <figcaption>Lower is better. Left: error versus compute for one 540&times;960 image pair; the dashed line links
+        the most accurate method at each budget. Right: all methods, ranked.</figcaption>
+      <details class="numbers" data-table="zeroShot"><summary>Show the numbers</summary></details>
+    </figure>
+
+    <figure class="card fig" id="fig-regions">
+      <div class="fig-head">
+        <div class="fig-title">Where the error is, and where DACE reduces it</div>
+      </div>
+      <div class="regions-stack">
+        <div class="chart" id="chart-concentration"></div>
+        <div>
+          <div class="legend-inline"><span class="lg sq waft">WAFT</span><span class="lg sq dace">DACE</span></div>
+          <div class="chart" id="chart-regions"></div>
+        </div>
+      </div>
+      <figcaption>Top: pixels whose target is occluded or out of frame are 6&ndash;14% of valid pixels, yet they account
+        for 42&ndash;52% of the fine-grid baseline WAFT&rsquo;s error. Bottom: EPE pooled over each region; the right
+        column gives DACE&rsquo;s change from WAFT in pixels, against 0.25&ndash;0.46&nbsp;px overall on Sintel and
+        KITTI. Things is the in-distribution test split; there the missing-target
+        region includes only out-of-frame pixels. Near motion boundaries means 5&times;5 neighborhoods of ground-truth
+        flow changes above 2&nbsp;pixels, which can overlap both other regions.</figcaption>
+      <details class="numbers" data-table="regions"><summary>Show the numbers</summary></details>
+    </figure>
+
+    <div class="card fig gallery" id="gallery">
+      <div class="fig-head"><div class="fig-title">Zero-shot examples</div><span class="fig-note">WAFT estimates flow for four times as many units</span></div>
+      <div class="thumbs" role="group" aria-label="Examples"></div>
+      <div class="gallery-head">
+        <div>
+          <div class="ex-title" id="ex-title"></div>
+          <div class="ex-meta" id="ex-meta"></div>
+        </div>
+      </div>
+      <p class="ex-caption" id="ex-caption"></p>
+      <div class="minis">
+        <figure class="mini" data-layer="image1"><div class="mini-img"><img alt="Image 1" draggable="false"><span class="mark"></span></div><figcaption>Image 1</figcaption></figure>
+        <figure class="mini" data-layer="image2"><div class="mini-img"><img alt="Image 2" draggable="false"><span class="mark"></span></div><figcaption>Image 2</figcaption></figure>
+        <figure class="mini" data-layer="gt"><div class="mini-img"><img alt="Ground-truth flow" draggable="false"><span class="mark"></span></div><figcaption>Ground truth</figcaption></figure>
+        <figure class="mini" data-layer="occ"><div class="mini-img"><img alt="Target visibility" draggable="false"><span class="mark"></span></div><figcaption><span class="sw-occ"></span>Target occluded or out of frame</figcaption></figure>
+      </div>
+      <div class="compare" id="gallery-compare">
+        <img class="layer base" alt="DACE flow" draggable="false">
+        <div class="clip"><img class="layer top" alt="WAFT flow" draggable="false"></div>
+        <div class="divider" role="slider" tabindex="0" aria-label="Drag to compare WAFT and DACE" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="knob"><svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <span class="tag tag-left">WAFT</span>
+        <span class="tag tag-right">DACE (ours)</span>
+        <div class="lens" aria-hidden="true"></div>
+        <span class="mark"></span>
+      </div>
+      <p class="gallery-hint">Drag to compare WAFT and DACE. Hover to magnify; the panels above mark the same point.</p>
+      <details class="reading" id="flow-colors">
+        <summary>How to read these images</summary>
+        <div class="reading-body">
+          <canvas id="colorwheel" width="132" height="132" aria-label="Optical flow color wheel"></canvas>
+          <p><b>Hue</b> gives the direction of motion and <b>color intensity</b> its speed; white means no motion.
+            Ground truth and both predictions share one color scale per example. In the visibility map, <b>blue</b>
+            marks pixels whose target is occluded or out of frame, gray the other valid pixels, and black excluded
+            pixels. Black in the ground truth marks missing labels; KITTI's sparse labels are enlarged for display.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ ANALYSIS -->
+<section id="analysis" class="section">
+  <div class="wrap narrow sec-head">
+    <div class="eyebrow">Analysis</div>
+    <h2>Adaptive units beat fixed grids at the same unit count</h2>
+    <p class="lead">To test the formulation itself, we compare DACE with fixed-grid controls that share its backbone,
+      feature resolution, unit count, refinement framework, and training recipe.</p>
+  </div>
+  <div class="wrap">
+    <figure class="card fig" id="fig-setup">
+      <div class="fig-head"><div class="fig-title">The setup: the same model with different units</div></div>
+      <div class="setup">
+        <figure class="su"><svg viewBox="-1 -1 162 162" aria-hidden="true"><defs><pattern id="su-waft-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="6" fill="#D64545" opacity=".6"/></pattern></defs><rect width="160" height="160" fill="#DDE5EC"/><path d="M0 70L0 80L0 90L0 100L0 110L0 120L0 130L0 140L0 150L0 160L10 160L20 160L30 160L40 160L50 160L60 160L70 160L80 160L90 160L100 160L110 160L120 160L130 160L140 160L150 160L160 160L160 150L160 140L150 140L140 140L140 130L130 130L130 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70L70 70L60 70L60 60L50 60L40 60L30 60L30 50L20 50L20 40L10 40L10 30L0 30L0 40L0 50L0 60Z" fill="#F5B07A"/><path d="M10 0V160M0 10H160M20 0V160M0 20H160M30 0V160M0 30H160M40 0V160M0 40H160M50 0V160M0 50H160M60 0V160M0 60H160M70 0V160M0 70H160M80 0V160M0 80H160M90 0V160M0 90H160M100 0V160M0 100H160M110 0V160M0 110H160M120 0V160M0 120H160M130 0V160M0 130H160M140 0V160M0 140H160M150 0V160M0 150H160" stroke="#fff" stroke-opacity=".55" stroke-width=".6" fill="none"/><path d="M10 40L20 40L20 30L20 20L10 20L0 20L0 30L0 40ZM30 60L40 60L40 50L40 40L30 40L20 40L20 50L20 60ZM60 70L60 80L70 80L80 80L90 80L100 80L100 70L100 60L90 60L80 60L70 60L60 60ZM100 100L100 110L100 120L110 120L120 120L120 110L120 100L120 90L120 80L110 80L100 80L100 90ZM140 140L140 130L140 120L130 120L120 120L120 130L120 140L130 140Z" fill="url(#su-waft-hatch)"/><path d="M0 20h10M0 40h10M0 60h10M0 80h10M0 100h10M0 120h10M0 140h10M20 0v10M20 10v10M10 20h10M20 20v10M20 30v10M10 40h10M20 40v10M20 50v10M10 60h10M20 60v10M20 70v10M10 80h10M20 80v10M20 90v10M10 100h10M20 100v10M20 110v10M10 120h10M20 120v10M20 130v10M10 140h10M20 140v10M20 150v10M20 20h10M20 40h10M20 60h10M20 80h10M20 100h10M20 120h10M20 140h10M40 0v10M40 10v10M30 20h10M40 20v10M40 30v10M30 40h10M40 40v10M40 50v10M30 60h10M40 60v10M40 70v10M30 80h10M40 80v10M40 90v10M30 100h10M40 100v10M40 110v10M30 120h10M40 120v10M40 130v10M30 140h10M40 140v10M40 150v10M40 20h10M40 40h10M40 60h10M40 80h10M40 100h10M40 120h10M40 140h10M60 0v10M60 10v10M50 20h10M60 20v10M60 30v10M50 40h10M60 40v10M60 50v10M50 60h10M60 60v10M60 70v10M50 80h10M60 80v10M60 90v10M50 100h10M60 100v10M60 110v10M50 120h10M60 120v10M60 130v10M50 140h10M60 140v10M60 150v10M60 20h10M60 40h10M60 60h10M60 80h10M60 100h10M60 120h10M60 140h10M80 0v10M80 10v10M70 20h10M80 20v10M80 30v10M70 40h10M80 40v10M80 50v10M70 60h10M80 60v10M80 70v10M70 80h10M80 80v10M80 90v10M70 100h10M80 100v10M80 110v10M70 120h10M80 120v10M80 130v10M70 140h10M80 140v10M80 150v10M80 20h10M80 40h10M80 60h10M80 80h10M80 100h10M80 120h10M80 140h10M100 0v10M100 10v10M90 20h10M100 20v10M100 30v10M90 40h10M100 40v10M100 50v10M90 60h10M100 60v10M100 70v10M90 80h10M100 80v10M100 90v10M90 100h10M100 100v10M100 110v10M90 120h10M100 120v10M100 130v10M90 140h10M100 140v10M100 150v10M100 20h10M100 40h10M100 60h10M100 80h10M100 100h10M100 120h10M100 140h10M120 0v10M120 10v10M110 20h10M120 20v10M120 30v10M110 40h10M120 40v10M120 50v10M110 60h10M120 60v10M120 70v10M110 80h10M120 80v10M120 90v10M110 100h10M120 100v10M120 110v10M110 120h10M120 120v10M120 130v10M110 140h10M120 140v10M120 150v10M120 20h10M120 40h10M120 60h10M120 80h10M120 100h10M120 120h10M120 140h10M140 0v10M140 10v10M130 20h10M140 20v10M140 30v10M130 40h10M140 40v10M140 50v10M130 60h10M140 60v10M140 70v10M130 80h10M140 80v10M140 90v10M130 100h10M140 100v10M140 110v10M130 120h10M140 120v10M140 130v10M130 140h10M140 140v10M140 150v10M140 20h10M140 40h10M140 60h10M140 80h10M140 100h10M140 120h10M140 140h10M150 20h10M150 40h10M150 60h10M150 80h10M150 100h10M150 120h10M150 140h10" stroke="#34495E" stroke-width="1.6" stroke-linecap="square" fill="none"/><circle cx="10.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="10.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="30.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="50.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="70.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="90.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="110.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="130.0" cy="150.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="10.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="30.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="50.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="70.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="90.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="110.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="130.0" r="1.8" fill="#34495E"/><circle cx="150.0" cy="150.0" r="1.8" fill="#34495E"/><rect width="160" height="160" fill="none" stroke="#34495E" stroke-width="1.6"/></svg><figcaption><b>WAFT</b><span>released fine-grid model: one unit per 2&times;2 pixels, four times as many units</span></figcaption></figure>
+        <figure class="su"><svg viewBox="-1 -1 162 162" aria-hidden="true"><defs><pattern id="su-grid-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="6" fill="#D64545" opacity=".6"/></pattern></defs><rect width="160" height="160" fill="#DDE5EC"/><path d="M0 70L0 80L0 90L0 100L0 110L0 120L0 130L0 140L0 150L0 160L10 160L20 160L30 160L40 160L50 160L60 160L70 160L80 160L90 160L100 160L110 160L120 160L130 160L140 160L150 160L160 160L160 150L160 140L150 140L140 140L140 130L130 130L130 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70L70 70L60 70L60 60L50 60L40 60L30 60L30 50L20 50L20 40L10 40L10 30L0 30L0 40L0 50L0 60Z" fill="#F5B07A"/><path d="M10 0V160M0 10H160M20 0V160M0 20H160M30 0V160M0 30H160M40 0V160M0 40H160M50 0V160M0 50H160M60 0V160M0 60H160M70 0V160M0 70H160M80 0V160M0 80H160M90 0V160M0 90H160M100 0V160M0 100H160M110 0V160M0 110H160M120 0V160M0 120H160M130 0V160M0 130H160M140 0V160M0 140H160M150 0V160M0 150H160" stroke="#fff" stroke-opacity=".55" stroke-width=".6" fill="none"/><path d="M0 50L0 60L0 70L0 80L10 80L20 80L30 80L40 80L50 80L60 80L70 80L80 80L80 90L80 100L80 110L80 120L90 120L100 120L110 120L120 120L120 110L120 100L120 90L120 80L120 70L120 60L120 50L120 40L110 40L100 40L90 40L80 40L70 40L60 40L50 40L40 40L40 30L40 20L40 10L40 0L30 0L20 0L10 0L0 0L0 10L0 20L0 30L0 40ZM140 120L130 120L120 120L120 130L120 140L120 150L120 160L130 160L140 160L150 160L160 160L160 150L160 140L160 130L160 120L150 120Z" fill="url(#su-grid-hatch)"/><path d="M0 40h10M0 80h10M0 120h10M10 40h10M10 80h10M10 120h10M20 40h10M20 80h10M20 120h10M40 0v10M40 10v10M40 20v10M40 30v10M30 40h10M40 40v10M40 50v10M40 60v10M40 70v10M30 80h10M40 80v10M40 90v10M40 100v10M40 110v10M30 120h10M40 120v10M40 130v10M40 140v10M40 150v10M40 40h10M40 80h10M40 120h10M50 40h10M50 80h10M50 120h10M60 40h10M60 80h10M60 120h10M80 0v10M80 10v10M80 20v10M80 30v10M70 40h10M80 40v10M80 50v10M80 60v10M80 70v10M70 80h10M80 80v10M80 90v10M80 100v10M80 110v10M70 120h10M80 120v10M80 130v10M80 140v10M80 150v10M80 40h10M80 80h10M80 120h10M90 40h10M90 80h10M90 120h10M100 40h10M100 80h10M100 120h10M120 0v10M120 10v10M120 20v10M120 30v10M110 40h10M120 40v10M120 50v10M120 60v10M120 70v10M110 80h10M120 80v10M120 90v10M120 100v10M120 110v10M110 120h10M120 120v10M120 130v10M120 140v10M120 150v10M120 40h10M120 80h10M120 120h10M130 40h10M130 80h10M130 120h10M140 40h10M140 80h10M140 120h10M150 40h10M150 80h10M150 120h10" stroke="#34495E" stroke-width="1.6" stroke-linecap="square" fill="none"/><circle cx="20.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="140.0" r="2.6" fill="#34495E"/><rect width="160" height="160" fill="none" stroke="#34495E" stroke-width="1.6"/></svg><figcaption><b>Fixed grid, same unit count</b><span>one unit per 4&times;4 pixels</span><em class="chip">+ local attention</em></figcaption></figure>
+        <figure class="su ours"><svg viewBox="-1 -1 162 162" aria-hidden="true"><defs><pattern id="su-dace-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="6" fill="#D64545" opacity=".6"/></pattern></defs><rect width="160" height="160" fill="#DDE5EC"/><path d="M0 70L0 80L0 90L0 100L0 110L0 120L0 130L0 140L0 150L0 160L10 160L20 160L30 160L40 160L50 160L60 160L70 160L80 160L90 160L100 160L110 160L120 160L130 160L140 160L150 160L160 160L160 150L160 140L150 140L140 140L140 130L130 130L130 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70L70 70L60 70L60 60L50 60L40 60L30 60L30 50L20 50L20 40L10 40L10 30L0 30L0 40L0 50L0 60Z" fill="#F5B07A"/><path d="M10 0V160M0 10H160M20 0V160M0 20H160M30 0V160M0 30H160M40 0V160M0 40H160M50 0V160M0 50H160M60 0V160M0 60H160M70 0V160M0 70H160M80 0V160M0 80H160M90 0V160M0 90H160M100 0V160M0 100H160M110 0V160M0 110H160M120 0V160M0 120H160M130 0V160M0 130H160M140 0V160M0 140H160M150 0V160M0 150H160" stroke="#fff" stroke-opacity=".55" stroke-width=".6" fill="none"/><path d="M0 30h10M10 30v10M0 80h10M0 120h10M10 40h10M20 40v10M10 80h10M10 120h10M20 50h10M30 50v10M20 80h10M20 120h10M40 0v10M40 10v10M40 20v10M40 30v10M40 40v10M30 50h10M30 60h10M30 80h10M40 80v10M40 90v10M40 100v10M40 110v10M30 120h10M40 120v10M40 130v10M40 140v10M40 150v10M40 40h10M40 60h10M50 70v10M40 80h10M40 120h10M50 40h10M50 60h10M60 60v10M50 70h10M50 120h10M60 40h10M60 70h10M60 120h10M80 0v10M80 10v10M80 20v10M80 30v10M70 40h10M80 40v10M80 50v10M80 60v10M70 70h10M80 70v10M80 80v10M80 90v10M80 100v10M80 110v10M70 120h10M80 120v10M80 130v10M80 140v10M80 150v10M80 40h10M80 70h10M90 70v10M80 120h10M90 40h10M90 80h10M100 80v10M90 120h10M100 40h10M100 90h10M110 90v10M110 100v10M100 120h10M120 0v10M120 10v10M120 20v10M120 30v10M110 40h10M120 40v10M120 50v10M120 60v10M120 70v10M120 80v10M110 90h10M110 110h10M120 110v10M110 120h10M120 120v10M120 130v10M120 140v10M120 150v10M120 40h10M120 80h10M120 120h10M130 120v10M130 40h10M130 80h10M130 130h10M140 130v10M140 40h10M140 80h10M140 140h10M150 40h10M150 80h10M150 140h10" stroke="#34495E" stroke-width="1.6" stroke-linecap="square" fill="none"/><circle cx="20.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="20.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="60.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="100.0" cy="140.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="20.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="60.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="100.0" r="2.6" fill="#34495E"/><circle cx="140.0" cy="140.0" r="2.6" fill="#34495E"/><rect width="160" height="160" fill="none" stroke="#34495E" stroke-width="1.6"/></svg><figcaption><b>DACE</b><span>units on the same lattice, with learned support</span><em class="chip">+ local attention</em></figcaption></figure>
+        <figure class="su su-ctx"><svg viewBox="-1 -1 162 162" aria-hidden="true"><defs><pattern id="su-ctx-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="6" fill="#D64545" opacity=".6"/></pattern></defs><rect width="160" height="160" fill="#DDE5EC"/><path d="M0 70L0 80L0 90L0 100L0 110L0 120L0 130L0 140L0 150L0 160L10 160L20 160L30 160L40 160L50 160L60 160L70 160L80 160L90 160L100 160L110 160L120 160L130 160L140 160L150 160L160 160L160 150L160 140L150 140L140 140L140 130L130 130L130 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70L70 70L60 70L60 60L50 60L40 60L30 60L30 50L20 50L20 40L10 40L10 30L0 30L0 40L0 50L0 60Z" fill="#F5B07A"/><path d="M10 0V160M0 10H160M20 0V160M0 20H160M30 0V160M0 30H160M40 0V160M0 40H160M50 0V160M0 50H160M60 0V160M0 60H160M70 0V160M0 70H160M80 0V160M0 80H160M90 0V160M0 90H160M100 0V160M0 100H160M110 0V160M0 110H160M120 0V160M0 120H160M130 0V160M0 130H160M140 0V160M0 140H160M150 0V160M0 150H160" stroke="#fff" stroke-opacity=".55" stroke-width=".6" fill="none"/><path d="M0 30h10M10 30v10M0 80h10M0 120h10M10 40h10M20 40v10M10 80h10M10 120h10M20 50h10M30 50v10M20 80h10M20 120h10M40 0v10M40 10v10M40 20v10M40 30v10M40 40v10M30 50h10M30 60h10M30 80h10M40 80v10M40 90v10M40 100v10M40 110v10M30 120h10M40 120v10M40 130v10M40 140v10M40 150v10M40 40h10M40 60h10M50 70v10M40 80h10M40 120h10M50 40h10M50 60h10M60 60v10M50 70h10M50 120h10M60 40h10M60 70h10M60 120h10M80 0v10M80 10v10M80 20v10M80 30v10M70 40h10M80 40v10M80 50v10M80 60v10M70 70h10M80 70v10M80 80v10M80 90v10M80 100v10M80 110v10M70 120h10M80 120v10M80 130v10M80 140v10M80 150v10M80 40h10M80 70h10M90 70v10M80 120h10M90 40h10M90 80h10M100 80v10M90 120h10M100 40h10M100 90h10M110 90v10M110 100v10M100 120h10M120 0v10M120 10v10M120 20v10M120 30v10M110 40h10M120 40v10M120 50v10M120 60v10M120 70v10M120 80v10M110 90h10M110 110h10M120 110v10M110 120h10M120 120v10M120 130v10M120 140v10M120 150v10M120 40h10M120 80h10M120 120h10M130 120v10M130 40h10M130 80h10M130 130h10M140 130v10M140 40h10M140 80h10M140 140h10M150 40h10M150 80h10M150 140h10" stroke="#34495E" stroke-opacity=".3" stroke-width="1.2" fill="none"/><rect x="60.0" y="60.0" width="80.0" height="80.0" fill="#fff" fill-opacity=".22"/><path d="M70 70L100 100M70 90L100 100M70 110L100 100M70 130L100 100M90 70L100 100M90 90L100 100M90 110L100 100M90 130L100 100M110 70L100 100M110 90L100 100M110 110L100 100M110 130L100 100M130 70L100 100M130 90L100 100M130 110L100 100M130 130L100 100" stroke="#5D6D7B" stroke-opacity=".6" stroke-width=".8" fill="none"/><circle cx="10.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="70.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="90.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="110.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="130.0" r="1.5" fill="#8A9AA8"/><circle cx="10.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="70.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="90.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="110.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="130.0" r="1.5" fill="#8A9AA8"/><circle cx="30.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="70.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="90.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="110.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="130.0" r="1.5" fill="#8A9AA8"/><circle cx="50.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="70.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="70.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="70.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="70.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="90.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="90.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="90.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="90.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="110.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="110.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="110.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="110.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="130.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="130.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="130.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="130.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="10.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="30.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="50.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="70.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="90.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="110.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="130.0" r="1.5" fill="#8A9AA8"/><circle cx="150.0" cy="150.0" r="1.5" fill="#8A9AA8"/><circle cx="70" cy="70" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="70" cy="90" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="70" cy="110" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="70" cy="130" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="90" cy="70" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="90" cy="90" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="90" cy="110" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="90" cy="130" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="110" cy="70" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="110" cy="90" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="110" cy="110" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="110" cy="130" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="130" cy="70" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="130" cy="90" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="130" cy="110" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><circle cx="130" cy="130" r="2.1" fill="#8A9AA8" stroke="#fff" stroke-width=".7"/><rect x="60.0" y="60.0" width="80.0" height="80.0" fill="none" stroke="#34495E" stroke-width="1.2" stroke-dasharray="4 3"/><path d="M80 80L80 90L80 100L80 110L80 120L90 120L100 120L110 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70Z" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".85" stroke-linejoin="round"/><path d="M80 80L80 90L80 100L80 110L80 120L90 120L100 120L110 120L120 120L120 110L110 110L110 100L110 90L100 90L100 80L90 80L90 70L80 70Z" fill="none" stroke="#34495E" stroke-width="2.6" stroke-linejoin="round"/><circle cx="100" cy="100" r="3.6" fill="#34495E" stroke="#fff" stroke-width="1.2"/><rect width="160" height="160" fill="none" stroke="#34495E" stroke-width="1.6"/></svg><figcaption><b>Local attention</b><span>each unit's pooled feature attends to the nearby dense features in a window</span></figcaption></figure>
+      </div>
+      <div class="unit-legend" aria-hidden="true"><span class="ul ul-obj">moving object</span><span class="ul ul-unit">unit</span><span class="ul ul-mixed">unit that mixes object and background</span><span class="ul ul-feat">dense feature</span></div>
+      <figcaption>All models share the DINOv3 backbone and its dense features (one per 2&times;2 pixels), WAFT's iterative
+        matching and refinement, and the training data and recipe.</figcaption>
+    </figure>
+
+    <figure class="card fig" id="fig-grid">
+      <div class="fig-head">
+        <div class="fig-title">DACE has the lowest error on all six metrics</div>
+        <span class="fig-note">lower is better</span>
+      </div>
+      <div class="legend-inline"><span class="lg sq waft">WAFT, four times as many units</span><span class="lg sq h4">Fixed grid, same unit count</span><span class="lg sq dace">DACE</span></div>
+      <div class="chart" id="chart-grid"></div>
+      <figcaption>The fixed grid and DACE both use local attention. Without local attention in either system, DACE
+        still improves five of six metrics, so adding context to the fixed grid does not reproduce the adaptive
+        system's accuracy.</figcaption>
+      <details class="numbers" data-table="grids"><summary>Show the numbers</summary></details>
+    </figure>
+
+    <figure class="card fig" id="fig-gain">
+      <div class="fig-head">
+        <div class="fig-title">Adaptive units gain more from the same local attention</div>
+        <span class="fig-note">lower is better</span>
+      </div>
+      <div class="legend-inline"><span class="lg sq h4">Fixed grid, same unit count</span><span class="lg sq dace">DACE</span><span class="lg-ctx"><i></i>without &rarr; <i class="f"></i>with local attention</span></div>
+      <div class="chart" id="chart-gain"></div>
+      <figcaption>EPE on pixels whose target is occluded or out of frame, without and with local attention; the
+        numbers give the change. All panels share one scale. Attention helps DACE more on every dataset and
+        rendering.</figcaption>
+    </figure>
+
+    <figure class="card fig" id="fig-recon">
+      <div class="fig-head">
+        <div class="fig-title">Adaptive units retain the motion they represent</div>
+        <span class="fig-note">lower is better</span>
+      </div>
+      <div class="legend-inline"><span class="lg sq h4">Fixed grid, same unit count</span><span class="lg sq dace">DACE</span></div>
+      <div class="chart" id="chart-recon"></div>
+      <figcaption>Each model's predicted unit flow is replaced with ground-truth flow pooled into its units, then mapped
+        back to pixels with the model's own image-predicted weights: DACE's assignments, or the fixed grid's convex
+        upsampling. The remaining error measures motion detail lost through pooling and readout, separately from
+        matching. Neither model is retrained.</figcaption>
+    </figure>
+
+    <figure class="card fig" id="fig-updates">
+      <div class="fig-head">
+        <div class="fig-title">Fewer units leave room for richer processing</div>
+        <div class="pills small" role="group" aria-label="Metric" data-group="up-metric">
+          <button class="pill" aria-pressed="true" data-metric="sintelF">Sintel Final</button>
+          <button class="pill" aria-pressed="false" data-metric="sintelC">Sintel Clean</button>
+          <button class="pill" aria-pressed="false" data-metric="kittiEPE">KITTI EPE</button>
+          <button class="pill" aria-pressed="false" data-metric="kittiFl">KITTI Fl</button>
+          <button class="pill" aria-pressed="false" data-metric="thingsC">Things Clean</button>
+          <button class="pill" aria-pressed="false" data-metric="thingsF">Things Final</button>
+        </div>
+      </div>
+      <div class="chart" id="chart-updates"></div>
+      <figcaption>The same trained models, run with one to five refinement updates (numbers on the points); both are
+        trained with five. Four-update DACE improves all six metrics over five-update WAFT at 706 versus 732 GMACs per
+        540&times;960 image pair. DACE refines a state twice as wide as WAFT&rsquo;s; on the fine grid, the same width
+        with local attention would cost 1,313 GMACs. DACE-64 uses WAFT&rsquo;s width.</figcaption>
+      <details class="numbers" data-table="updates"><summary>Show the numbers</summary></details>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ CONCLUSION + CITE -->
+<section class="section alt" id="conclusion">
+  <div class="wrap narrow">
+    <div class="eyebrow">Conclusion</div>
+    <p class="conclusion">DACE learns the units of correspondence for dense optical flow. One set of soft
+      pixel-to-unit assignments gathers each unit's matching evidence and returns its predicted flow to the pixels it
+      represents, so pixels can draw on context where matches are missing while different motions stay apart.
+      <b>Learning the units to match complements learning the evidence used to match them.</b></p>
+  </div>
+</section>
+
+<section id="citation" class="section">
+  <div class="wrap narrow">
+    <h2>Citation</h2>
+    <div class="bibtex card">
+      <button class="copy" id="copy-bib" type="button">Copy</button>
+      <pre id="bibtex"><code>@inproceedings{hsieh2026dace,
+  title     = {Dense Flow from Adaptive Correspondence},
+  author    = {Hsieh, Cheng-Lin and Yu, Stella X.},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026}
+}</code></pre>
+    </div>
+    <h3 class="sub">Acknowledgements</h3>
+    <p class="small-text">This project was supported in part by NSF grant 2313151, with additional computing resources
+      provided through NAIRR Pilot CIS240421 and CIS240431. The authors thank
+      <a href="https://github.com/fuy34/superpixel_fcn">SpixelFCN</a> and <a href="https://github.com/princeton-vl/WAFT">WAFT</a>
+      for sharing their code.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <span>&copy; 2026 Cheng-Lin Hsieh &amp; Stella X. Yu &middot; University of Michigan</span>
+    <span><a href="https://github.com/chenglinh/DACE">Code</a> &middot; <a href="https://chenglinh.github.io/">Homepage</a></span>
+  </div>
+</footer>
+
+<div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+
+<script src="static/vendor/d3/d3.min.js"></script>
+<script defer src="static/vendor/katex/katex.min.js"></script>
+<script defer src="static/vendor/katex/contrib/auto-render.min.js"></script>
+<script src="static/js/data.js"></script>
+<script src="static/js/charts.js"></script>
+<script src="static/js/main.js"></script>
+</body>
+</html>
